@@ -1,3 +1,4 @@
+%chardef begin
 E       一
 C       乙
 EJ      丁
@@ -14120,3 +14121,4 @@ ZS     悍
 ZT     憬
 ZU     恤
 ZV     懊
+%chardef end
