@@ -1,18 +1,46 @@
 import itertools
+import re
 
-def load_cin_file(filename):
+def load_cin_file(typ, filename):
     with open(filename, 'r', encoding='utf-8') as file:
         lines = file.readlines()
     
     key_to_character = {}
+    if type == 'raw':
+        is_def = True
+    else:
+      is_def = False
+    endkey=r'[ ]' # This is default endkey, which is used when %endkey is not found in the file
     for line in lines:
         line = line.strip()
         if not line or line.startswith('#'):  # 忽略空行和注释行
             continue
-        parts = line.split()
+        # handle %chardef to load key sequence only in the chardef section
+        if typ == 'cin':
+          if line.startswith("%chardef"):
+              tokens = line.split()
+              if tokens[1] == 'begin':
+                  is_def = True
+              elif tokens[1] == 'end':
+                  is_def = False
+              continue
+          elif line.startswith("%endkey"):
+              tokens = line.split()
+              endkey = '['+tokens[1]+' ]'
+              continue
+          if is_def == False:
+              continue
+        # split the line by any characters in endkey
+        parts = line.split(' ')
+
         if len(parts) >= 2:
-            key_sequence = parts[0]
-            character = parts[1]
+            if typ == 'raw':
+              key_sequence = parts[0].upper()
+              character = parts[1]
+            else:
+              key_sequence = parts[1].upper()
+              character = parts[0]
+                
             if key_sequence in key_to_character:
                 key_to_character[key_sequence].append(character)
             else:
@@ -36,13 +64,15 @@ def convert_key_sequence_to_text(key_sequence, key_to_character):
     return all
 
 # 示例Cin格式文件路径
-cin_file_path = '14_dayi.cin'
+#cin_file_path = '14_dayi.cin'
+cin_file_path = 'lookup-bpmf.cin'
 
 # 载入Cin格式输入法表格
-key_to_character = load_cin_file(cin_file_path)
+#key_to_character = load_cin_file('raw',cin_file_path)
+key_to_character = load_cin_file('cin',cin_file_path)
 
 # 示例按键序列
-key_sequence = 'E A7SO A'
+key_sequence = 'u ek7 bp6'
 # 转换按键序列为文字
 text = convert_key_sequence_to_text(key_sequence, key_to_character)
 print(f"转换后的文字: {text}")
