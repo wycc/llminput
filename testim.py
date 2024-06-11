@@ -1,5 +1,7 @@
 import itertools
 import re
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
 
 def load_cin_file(typ, filename):
     with open(filename, 'r', encoding='utf-8') as file:
@@ -76,3 +78,29 @@ key_sequence = 'u ek7 bp6'
 # 转换按键序列为文字
 text = convert_key_sequence_to_text(key_sequence, key_to_character)
 print(f"转换后的文字: {text}")
+
+# 载入预训练模型
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+model = AutoModelForCausalLM.from_pretrained("gpt2")
+
+# 示例文字
+for t in text:
+    
+    tokens=tokenizer.encode(t, return_tensors='pt')
+    p = 1
+    for i in range(len(tokens[0])-1):
+      input_ids = tokens[:, :i+1]
+
+      with torch.no_grad():
+          logits = model(input_ids)[0]
+          next_token_logits = logits[0, -1, :]
+          predictions = torch.nn.functional.softmax(next_token_logits, dim=-1)
+          prop = predictions[tokens[0, i+1]]
+          p = p * prop
+          #print(f"第{i+1}个字的概率: {prop}")
+
+    print(f"整个句子的概率: {t}==>{p}")
+          
+          
+
+        
