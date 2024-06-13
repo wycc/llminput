@@ -74,33 +74,72 @@ cin_file_path = 'lookup-bpmf.cin'
 key_to_character = load_cin_file('cin',cin_file_path)
 
 # 示例按键序列
-key_sequence = 'u ek7 bp6'
+key_sequence = 'u ek7 bp6 2k7 g6'
 # 转换按键序列为文字
 text = convert_key_sequence_to_text(key_sequence, key_to_character)
 print(f"转换后的文字: {text}")
 
-# 载入预训练模型
-tokenizer = AutoTokenizer.from_pretrained("gpt2")
-model = AutoModelForCausalLM.from_pretrained("gpt2")
+import torch
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
+import math
 
-# 示例文字
-for t in text:
-    
-    tokens=tokenizer.encode(t, return_tensors='pt')
-    p = 1
-    for i in range(len(tokens[0])-1):
-      input_ids = tokens[:, :i+1]
+# 加載 GPT-2 模型和 tokenizer
+model_name = 'gpt2'
+tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+model = GPT2LMHeadModel.from_pretrained(model_name)
 
-      with torch.no_grad():
-          logits = model(input_ids)[0]
-          next_token_logits = logits[0, -1, :]
-          predictions = torch.nn.functional.softmax(next_token_logits, dim=-1)
-          prop = predictions[tokens[0, i+1]]
-          p = p * prop
-          #print(f"第{i+1}个字的概率: {prop}")
+# 將模型設置為評估模式
+model.eval()
 
-    print(f"整个句子的概率: {t}==>{p}")
-          
-          
+def calculate_probabilities(texts):
+    # 將多個文本編碼為 tokens
+    tokenizer.pad_token = tokenizer.eos_token
+    inputs = tokenizer(texts, return_tensors='pt', padding=True, truncation=True)
+    input_ids = inputs['input_ids']
+    attention_mask = inputs['attention_mask']
 
-        
+    # 計算 tokens 的 log 概率
+    with torch.no_grad():
+        outputs = model(input_ids, attention_mask=attention_mask, labels=input_ids)
+
+    # 轉換 logits 為概率
+    log_probs = torch.nn.functional.log_softmax(outputs.logits, dim=-1)
+
+    # 計算每個字串的總 log 概率
+    batch_size, seq_len = input_ids.size()
+    total_log_probs = []
+
+    for i in range(batch_size):
+        seq_log_prob = 0.0
+        for j in range(seq_len):
+            if attention_mask[i, j] == 1:  # 只考慮非填充部分
+                token_id = input_ids[i, j].item()
+                token_log_prob = log_probs[i, j, token_id].item()
+                seq_log_prob += token_log_prob
+        total_log_probs.append(seq_log_prob)
+
+    # 計算每個文本的總概率
+    probabilities = [math.exp(log_prob) for log_prob in total_log_probs]
+
+    return probabilities
+
+# segment text into batches of 64 to avoid OOM error
+text_batches = [text[i:i+64] for i in range(0, len(text), 64)]
+
+# calculate probabilities for each batch
+probs_batches = []
+for batch in text_batches:
+    probs_batch = calculate_probabilities(batch)
+    probs_batches.append(probs_batch)
+
+# concatenate probabilities for all batches
+probs = [prob for probs_batch in probs_batches for prob in probs_batch]
+
+
+# sort texts by probability in descending order
+sorted_probs, sorted_texts = zip(*sorted(zip(probs, text), reverse=True))
+
+for k, v in zip(sorted_probs, sorted_texts):
+    print(f"{k:.20g} {v}")
+
+

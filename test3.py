@@ -32,8 +32,8 @@ def compare_strings(prompt, target_strings):
     return probabilities
 
 # 示例
-prompt = "一个"
-target_strings = ["人", "小猫", "大象"]
+prompt = "一個"
+target_strings = ["人.", "小猫", "大象"]
 probabilities = compare_strings(prompt, target_strings)
 
 # 打印结果
