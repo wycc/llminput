@@ -87,7 +87,8 @@ import math
 model_name = 'gpt2'
 tokenizer = GPT2Tokenizer.from_pretrained(model_name)
 model = GPT2LMHeadModel.from_pretrained(model_name)
-
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
+model.to(device)
 # 將模型設置為評估模式
 model.eval()
 
@@ -100,10 +101,12 @@ def calculate_probabilities(texts):
 
     # 計算 tokens 的 log 概率
     with torch.no_grad():
-        outputs = model(input_ids, attention_mask=attention_mask, labels=input_ids)
+        input_ids=input_ids.to(device)
+        outputs = model(input_ids, attention_mask=attention_mask.to(device), labels=input_ids)
 
     # 轉換 logits 為概率
-    log_probs = torch.nn.functional.log_softmax(outputs.logits, dim=-1)
+    log_probs = torch.nn.functional.log_softmax(outputs.logits, dim=-1).to('cpu')
+
 
     # 計算每個字串的總 log 概率
     batch_size, seq_len = input_ids.size()
